@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Memecoin Narrative Early Radar</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1020;--panel:#121a2b;--border:#26334b;--text:#e8eef8;--muted:#9aa9bf;--green:#42d392;--amber:#eab75b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:1100px;margin:auto;padding:28px 18px 60px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}
+h1{font-size:25px;margin:3px 0}.sub,.muted{color:var(--muted)}.pill{font-size:11px;border:1px solid var(--border);padding:5px 8px;border-radius:30px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0}.card,.panel{background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:16px}.num{font-size:30px;font-weight:750}.label{font-size:12px;color:var(--muted)}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}input,select,button{background:#172238;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:9px 11px}
+button{cursor:pointer}button:hover{border-color:var(--green)}.list{display:grid;gap:10px}.item{padding:14px;border:1px solid var(--border);border-radius:10px}.item h3{margin:0 0 7px;font-size:16px}.meta{display:flex;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:12px}.score{color:var(--green);font-weight:700}.bar{height:5px;background:#27344b;border-radius:8px;margin-top:9px;overflow:hidden}.bar span{display:block;height:100%;background:var(--green)}
+a{color:#82b8ff}.evidence{font-size:13px;line-height:1.6;margin-top:10px}.empty{padding:25px;text-align:center;color:var(--muted)}
+@media(max-width:700px){.grid{grid-template-columns:repeat(2,1fr)}main{padding:20px 12px}}
+</style>
+</head>
+<body><main>
+<div class="top"><div><div class="sub">GLOBAL · MULTI-CHAIN · NARRATIVE INTELLIGENCE</div><h1>Memecoin Narrative Early Radar</h1><div class="sub" style="font-size:12px">V1 · RSS-powered research dashboard</div></div><span class="pill" id="status">Connecting…</span></div>
+<section class="grid">
+<div class="card"><div class="label">Narratives tracked</div><div class="num" id="narrativeCount">—</div></div>
+<div class="card"><div class="label">Emerging signals</div><div class="num" id="emergingCount">—</div></div>
+<div class="card"><div class="label">Source items (24h)</div><div class="num" id="signalCount">—</div></div>
+<div class="card"><div class="label">Latest report (UTC)</div><div class="num" id="reportDate" style="font-size:17px;margin-top:9px">—</div></div>
+</section>
+<section class="panel"><div class="top"><div><h2 style="font-size:18px;margin:0">Narrative signals</h2><div class="sub" style="font-size:12px">Preliminary heuristic scores · not trading signals</div></div><button id="refresh">Refresh</button></div>
+<div class="controls"><input id="search" placeholder="Search narrative…" aria-label="Search narrative"><select id="stage"><option value="">All stages</option><option>Emerging</option><option>Growing</option><option>Observing</option></select><select id="sort"><option value="score">Highest score</option><option value="mentions_24h">Most mentions</option><option value="updated_at">Recently updated</option></select></div>
+<div class="list" id="narratives"><div class="empty">Loading data…</div></div></section>
+<section class="panel" style="margin-top:14px"><h2 style="font-size:18px;margin:0 0 8px">Latest daily report</h2><div id="dailyReport" class="sub">Loading…</div></section>
+<p class="sub" style="font-size:12px;margin-top:18px">Data is collected from public RSS feeds. Coverage is incomplete and classifications may be wrong. Verify original sources. No buy/sell recommendations.</p>
+</main>
+<script src="./config.js"></script>
+<script>
+const cfg=window.RADAR_CONFIG||{};let allNarratives=[];
+const $=id=>document.getElementById(id);
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+async function query(table,params=''){if(!cfg.supabaseUrl||cfg.supabaseUrl.includes('YOUR_')||!cfg.supabaseAnonKey||cfg.supabaseAnonKey.includes('YOUR_'))throw Error('Add Supabase URL and public anon key in dashboard/config.js');const r=await fetch(`${cfg.supabaseUrl}/rest/v1/${table}?${params}`,{headers:{apikey:cfg.supabaseAnonKey,Authorization:`Bearer ${cfg.supabaseAnonKey}`}});if(!r.ok)throw Error(`${table}: ${r.status} ${await r.text()}`);return r.json();}
+async function load(){ $('status').textContent='Loading…';try{
+ const [n,s,d]=await Promise.all([
+ query('narratives','select=*&order=score.desc&limit=100'),
+ query('signals',`select=id&published_at=gte.${encodeURIComponent(new Date(Date.now()-86400000).toISOString())}&limit=1000`),
+ query('daily_reports','select=*&order=report_date.desc&limit=1')
+ ]);
+ allNarratives=n;$('narrativeCount').textContent=n.length;$('emergingCount').textContent=n.filter(x=>x.stage==='Emerging').length;$('signalCount').textContent=s.length;$('reportDate').textContent=d[0]?.report_date||'—';
+ $('dailyReport').innerHTML=d[0]?`<b>${esc(d[0].report_date)}</b> · ${d[0].narratives_count} clusters detected<br><div class="evidence">${(d[0].top_narratives||[]).map(x=>`${esc(x.title)} — ${x.score}/100 (${esc(x.stage)})`).join('<br>')||'No clusters yet.'}</div>`:'No report yet. Run the collector workflow first.';
+ $('status').textContent='Connected · auto-refresh 5m';render();
+ }catch(e){$('status').textContent='Connection issue';$('narratives').innerHTML=`<div class="empty">${esc(e.message)}<br><br>Check dashboard/config.js, Supabase SQL and GitHub Actions.</div>`;$('dailyReport').textContent=e.message;}}
+function render(){let q=$('search').value.toLowerCase(),stage=$('stage').value,sort=$('sort').value;let rows=allNarratives.filter(x=>(!stage||x.stage===stage)&&(`${x.title} ${x.category}`).toLowerCase().includes(q));rows.sort((a,b)=>sort==='score'?b.score-a.score:sort==='mentions_24h'?b.mentions_24h-a.mentions_24h:String(b.updated_at).localeCompare(String(a.updated_at)));
+ $('narratives').innerHTML=rows.length?rows.map(x=>`<article class="item"><div class="top"><h3>${esc(x.title)}</h3><span class="pill">${esc(x.stage)}</span></div><div class="meta"><span>${esc(x.category)}</span><span>24h mentions: ${x.mentions_24h}</span><span>Sources: ${x.sources_count}</span><span>Saturation: ${esc(x.saturation)}</span></div><div class="meta" style="margin-top:9px"><span>Preliminary score</span><span class="score">${x.score}/100</span></div><div class="bar"><span style="width:${Math.max(0,Math.min(100,x.score))}%"></span></div><div class="evidence">${(x.sample_evidence||[]).map(e=>`<div>• <a href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">${esc(e.title)}</a> <span class="muted">(${esc(e.source)})</span></div>`).join('')}</div><div class="meta" style="margin-top:9px">First observed: ${x.first_seen_at?new Date(x.first_seen_at).toLocaleString(): 'Unknown'} · Updated: ${x.updated_at?new Date(x.updated_at).toLocaleString():'Unknown'}</div></article>`).join(''):'<div class="empty">No matching narratives yet.</div>';}
+$('refresh').addEventListener('click',load);['search','stage','sort'].forEach(id=>$(id).addEventListener(id==='search'?'input':'change',render));load();setInterval(load,300000);
+</script></body></html>
