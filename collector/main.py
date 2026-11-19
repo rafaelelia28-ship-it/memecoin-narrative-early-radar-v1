@@ -15,7 +15,6 @@ SERVICE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 REST = f"{SUPABASE_URL}/rest/v1"
 HEADERS = {
     "apikey": SERVICE_KEY,
-    "Authorization": f"Bearer {SERVICE_KEY}",
     "Content-Type": "application/json",
     "Prefer": "resolution=merge-duplicates,return=minimal",
 }
