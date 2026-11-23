@@ -78,8 +78,23 @@ def supabase_post(table, rows, on_conflict=None):
     if not rows:
         return
     params = {"on_conflict": on_conflict} if on_conflict else {}
-    response = requests.post(f"{REST}/{table}", params=params, headers=HEADERS, json=rows, timeout=30)
-    response.raise_for_status()
+    
+response = requests.post(
+    f"{REST}/{table}",
+    params=params,
+    headers=HEADERS,
+    json=rows,
+    timeout=30,
+)
+
+if not response.ok:
+    log.error(
+        "Supabase error %s: %s",
+        response.status_code,
+        response.text[:2000],
+    )
+
+response.raise_for_status()
 
 def supabase_get(table, params):
     h = dict(HEADERS)
