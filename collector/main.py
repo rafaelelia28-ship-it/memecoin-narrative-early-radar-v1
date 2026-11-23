@@ -13,11 +13,14 @@ log = logging.getLogger("radar")
 SUPABASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
 SERVICE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 REST = f"{SUPABASE_URL}/rest/v1"
+
 HEADERS = {
     "apikey": SERVICE_KEY,
     "Content-Type": "application/json",
     "Prefer": "resolution=merge-duplicates,return=minimal",
 }
+
+
 NOW = datetime.now(timezone.utc)
 
 # Transparent starter taxonomy. Expand and tune after reviewing real-world classifications.
